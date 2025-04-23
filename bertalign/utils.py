@@ -1,6 +1,7 @@
 import re
-from googletrans import Translator
-from sentence_splitter import SentenceSplitter
+from lingua import Language, LanguageDetectorBuilder
+from blingfire import *
+#from sentence_splitter import SentenceSplitter
 
 def clean_text(text):
     clean_text = []
@@ -13,25 +14,63 @@ def clean_text(text):
             clean_text.append(line)
     return "\n".join(clean_text)
     
+    
+
+# Initialize language detector with all UN languages
+LANGUAGE_MAP = {
+    Language.ENGLISH: "en",
+    Language.FRENCH: "fr", 
+    Language.SPANISH: "es", 
+    Language.CHINESE: "zh", 
+    Language.RUSSIAN: "ru", 
+    Language.ARABIC: "ar", 
+    Language.PORTUGUESE: "pt",
+    Language.SWAHILI: "sw"
+}
+
+# Create a detector instance
+detector = LanguageDetectorBuilder.from_languages(*LANGUAGE_MAP.keys()).build()
+
 def detect_lang(text):
-    translator = Translator(service_urls=[
-      'translate.google.com.hk',
-    ])
-    max_len = 200
-    chunk = text[0 : min(max_len, len(text))]
-    lang = translator.detect(chunk).lang
-    if lang.startswith('zh'):
-        lang = 'zh'
-    return lang
+    """
+    Detects the language of the given text using lingua language detector.
+    
+    Args:
+        text (str): Text to detect language of
+        
+    Returns:
+        str: ISO 639-1 language code (lowercase)
+    """
+    try:
+        # Ensure text is not too short for accurate detection
+        if not text or len(text.strip()) < 20:
+            return "unknown"
+            
+        # Detect language
+        detected_language = detector.detect_language_of(text)
+        
+        # Return the ISO code if detected, otherwise "unknown"
+        if detected_language:
+            return LANGUAGE_MAP.get(detected_language, "unknown")
+        return "unknown"
+    except Exception as e:
+        print(f"Language detection failed: {e}")
+        return "unknown"
 
 def split_sents(text, lang):
     if lang in LANG.SPLITTER:
         if lang == 'zh':
             sents = _split_zh(text)
         else:
-            splitter = SentenceSplitter(language=lang)
-            sents = splitter.split(text=text) 
-            sents = [sent.strip() for sent in sents]
+            #splitter = SentenceSplitter(language=lang)
+            #sents = splitter.split(text=text)
+            #sents = [sent.strip() for sent in sents]
+            sentences_text = text_to_sentences(text)
+    
+            # Split by line breaks to get individual sentences
+            sents = [sent.strip() for sent in sentences_text.split('\n') if sent.strip()]
+    
+            
         return sents
     else:
         raise Exception('The language {} is not suppored yet.'.format(LANG.ISO[lang]))
@@ -79,6 +118,7 @@ def _preprocess_line(line):
     
 class LANG:
     SPLITTER = {
+        'ar': 'Arabic',
         'ca': 'Catalan',
         'zh': 'Chinese',
         'cs': 'Czech',
